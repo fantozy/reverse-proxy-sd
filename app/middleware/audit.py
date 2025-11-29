@@ -49,7 +49,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
             if key.lower() not in unsafe_header_keys:
                 safe_headers[key] = value
         
-        # Get body size
         body_size = 0
         if method in ["POST", "PUT", "PATCH"]:
             try:

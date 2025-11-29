@@ -27,7 +27,7 @@ async def get_mapper():
     response_model=SuccessResponse | ErrorResponse,
     status_code=200
 )
-async def execute_proxy(request: ProxyRequest, raw_request: Request):
+async def execute_proxy(request: ProxyRequest):
     """
     Main reverse proxy endpoint.
     Routes by operationType, validates payload, invokes decision mapper,

@@ -42,7 +42,6 @@ class OpenLigaDBAdapter(SportsProvider):
             response = await client.get(url, follow_redirects=True)
             latency_ms = int((time.time() - start_time) * 1000)
             
-            # Check if response is successful
             if response.status_code == 200:
                 return AdapterResponse(
                     data=response.json(),

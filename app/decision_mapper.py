@@ -9,7 +9,6 @@ class OperationType(str, Enum):
     GET_MATCH = "GetMatch"
 
 
-# Define required fields per operation
 OPERATION_SCHEMAS = {
     OperationType.LIST_LEAGUES: {
         "required": [],
@@ -134,7 +133,6 @@ def validate_payload(operation: str, payload: Dict) -> Tuple[bool, str, Any]:
     if not schema:
         return False, "No schema defined for operation", None
     
-    # Check required fields
     missing = [f for f in schema["required"] if f not in payload]
     if missing:
         return False, f"Missing required fields: {missing}", {"missing_fields": missing}
