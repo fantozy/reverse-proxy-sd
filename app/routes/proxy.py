@@ -4,7 +4,6 @@ from app.models.requests import ProxyRequest
 from app.models.responses import SuccessResponse, ErrorResponse, ResponseMetadata
 from app.adapters.manager import get_adapter
 from app.decision_mapper import DecisionMapper, validate_operation_type, validate_payload
-from app.normalizers import normalize_response
 from app.config import settings
 
 
@@ -111,7 +110,7 @@ async def execute_proxy(request: ProxyRequest, raw_request: Request):
                 adapter_response.data
             )
         
-        normalized_data = normalize_response(operation_type, adapter_response.data)
+        normalized_data = adapter_response.data
         metadata = ResponseMetadata(
             provider="openliga",
             upstreamLatency=upstream_latency
