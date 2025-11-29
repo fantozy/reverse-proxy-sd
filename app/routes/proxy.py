@@ -1,9 +1,10 @@
 import structlog
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, status
 from app.models.requests import ProxyRequest
 from app.models.responses import SuccessResponse, ErrorResponse, ResponseMetadata
 from app.adapters.manager import get_adapter
-from app.decision_mapper import DecisionMapper, validate_operation_type, validate_payload
+from app.decision_mapper import DecisionMapper
+from app.utils.validators import validate_operation_type, validate_payload 
 from app.config import settings
 
 
@@ -18,7 +19,6 @@ async def get_mapper():
     if _mapper is None:
         adapter = await get_adapter('openliga', settings)
         _mapper = DecisionMapper(adapter)
-        _mapper.register_all()
     return _mapper
 
 
@@ -30,8 +30,6 @@ async def get_mapper():
 async def execute_proxy(request: ProxyRequest):
     """
     Main reverse proxy endpoint.
-    Routes by operationType, validates payload, invokes decision mapper,
-    and returns normalized response.
     """
     request_id = request.requestId
     operation_type = request.operationType
@@ -52,11 +50,20 @@ async def execute_proxy(request: ProxyRequest):
             error_type="unknown_operation_type",
             error_message=validation_error
         )
-        raise _error_response(
-            request_id, 400, "UNKNOWN_OPERATION", validation_error
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "requestId": request_id,
+                "success": False,
+                "error": {
+                    "code": "UNKNOWN_OPERATION",
+                    "message": validation_error,
+                    "details": None
+                }
+            }
         )
     
-    is_valid, validation_error, error_details = validate_payload(operation_type, payload)
+    is_valid, validation_error, error_details, validated_payload = validate_payload(operation_type, payload)
     if not is_valid:
         await logger.awarning(
             "validation_failed",
@@ -66,8 +73,17 @@ async def execute_proxy(request: ProxyRequest):
             error_message=validation_error,
             error_details=error_details
         )
-        raise _error_response(
-            request_id, 400, "VALIDATION_ERROR", validation_error, error_details
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "requestId": request_id,
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": validation_error,
+                    "details": error_details
+                }
+            }
         )
     
     await logger.ainfo(
@@ -78,13 +94,7 @@ async def execute_proxy(request: ProxyRequest):
     
     try:
         mapper = await get_mapper()
-        decision = mapper.get_decision(operation_type)
-        
-        if not decision:
-            raise ValueError(f"No decision found for operation: {operation_type}")
-        
-        adapter_response = await decision.execute(payload)
-        upstream_latency = adapter_response.latency_ms
+        adapter_response = await mapper.execute(operation_type, validated_payload)
         
         await logger.ainfo(
             "upstream_call",
@@ -93,7 +103,7 @@ async def execute_proxy(request: ProxyRequest):
             provider="openliga",
             target_url=adapter_response.upstream_url,
             status_code=adapter_response.status_code,
-            latency_ms=upstream_latency
+            latency_ms=adapter_response.latency_ms
         )
         
         if adapter_response.status_code != 200:
@@ -104,22 +114,28 @@ async def execute_proxy(request: ProxyRequest):
                 status_code=adapter_response.status_code,
                 error=adapter_response.data
             )
-            raise _error_response(
-                request_id, 502, "UPSTREAM_ERROR",
-                "Upstream API failed after retries",
-                adapter_response.data
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "requestId": request_id,
+                    "success": False,
+                    "error": {
+                        "code": "UPSTREAM_ERROR",
+                        "message": "Upstream API failed after retries",
+                        "details": adapter_response.data
+                    }
+                }
             )
         
-        normalized_data = adapter_response.data
         metadata = ResponseMetadata(
             provider="openliga",
-            upstreamLatency=upstream_latency
+            upstreamLatency=adapter_response.latency_ms
         )
         
         success_response = SuccessResponse(
             requestId=request_id,
             success=True,
-            data=normalized_data,
+            data=adapter_response.data,
             metadata=metadata
         )
         
@@ -127,7 +143,7 @@ async def execute_proxy(request: ProxyRequest):
             "proxy_request_success",
             request_id=request_id,
             operation_type=operation_type,
-            data_items=len(normalized_data) if isinstance(normalized_data, list) else 1
+            data_items=len(adapter_response.data) if isinstance(adapter_response.data, list) else 1
         )
         
         return success_response
@@ -143,34 +159,15 @@ async def execute_proxy(request: ProxyRequest):
             error=str(e),
             error_type=type(e).__name__
         )
-        raise _error_response(
-            request_id, 500, "INTERNAL_ERROR", "Internal server error"
-        )
-
-
-def _error_response(
-    request_id: str,
-    status_code: int,
-    error_code: str,
-    message: str,
-    details: any = None
-):
-    """Helper to create standardized error responses."""
-    http_status = {
-        400: status.HTTP_400_BAD_REQUEST,
-        502: status.HTTP_502_BAD_GATEWAY,
-        500: status.HTTP_500_INTERNAL_SERVER_ERROR
-    }.get(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    return HTTPException(
-        status_code=http_status,
-        detail={
-            "requestId": request_id,
-            "success": False,
-            "error": {
-                "code": error_code,
-                "message": message,
-                "details": details
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "requestId": request_id,
+                "success": False,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal server error",
+                    "details": None
+                }
             }
-        }
-    )
+        )

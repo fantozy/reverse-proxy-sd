@@ -30,8 +30,8 @@ def validate_payload(operation_type: str, payload: Dict[str, Any]) -> Tuple[bool
         return False, "Unknown operation type", None
     
     try:
-        payload_model(**payload)
-        return True, None, None
+        validated = payload_model(**payload)
+        return True, None, None, validated
     
     except ValidationError as e:
         errors = e.errors()
@@ -45,4 +45,4 @@ def validate_payload(operation_type: str, payload: Dict[str, Any]) -> Tuple[bool
             }
         
         error_msg = f"Payload validation failed for {operation_type}"
-        return False, error_msg, error_dict
+        return False, error_msg, error_dict, None
