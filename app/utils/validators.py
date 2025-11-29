@@ -27,7 +27,7 @@ def validate_payload(operation_type: str, payload: Dict[str, Any]) -> Tuple[bool
     payload_model = OPERATION_PAYLOAD_MAP.get(operation_type)
     
     if not payload_model:
-        return False, "Unknown operation type", None
+        return False, "Unknown operation type", None, None 
     
     try:
         validated = payload_model(**payload)
