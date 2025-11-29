@@ -28,7 +28,7 @@ class RateLimiter:
         Returns:
             True if request is within rate limit, False otherwise
         """
-        current_time = time.time()
+        current_time = time.monotonic()
         
         while self.requests and self.requests[0] < current_time - self.window:
             self.requests.popleft()
@@ -42,7 +42,7 @@ class RateLimiter:
     
     def get_remaining(self) -> int:
         """Get number of remaining requests in current window."""
-        current_time = time.time()
+        current_time = time.monotonic()
         
         # Remove old requests
         while self.requests and self.requests[0] < current_time - self.window:
@@ -55,7 +55,7 @@ class RateLimiter:
         if not self.requests:
             return 0
         
-        current_time = time.time()
+        current_time = time.monotonic()
         oldest_request = self.requests[0]
         reset_time = oldest_request + self.window - current_time
         

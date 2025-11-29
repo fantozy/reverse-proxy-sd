@@ -38,9 +38,9 @@ class OpenLigaDBAdapter(SportsProvider):
         client = await self._get_client()
         
         try:
-            start_time = time.time()
+            start_time = time.perf_counter()
             response = await client.get(url, follow_redirects=True)
-            latency_ms = int((time.time() - start_time) * 1000)
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
             
             if response.status_code == 200:
                 return AdapterResponse(
@@ -114,11 +114,6 @@ class OpenLigaDBAdapter(SportsProvider):
     async def get_team(self, team_id: int) -> AdapterResponse:
         """Get team information."""
         url = f"{self.base_url}/api/getteam/{team_id}"
-        return await self._fetch(url)
-    
-    async def get_league_standings(self, league_id: int) -> AdapterResponse:
-        """Get standings for a specific league."""
-        url = f"{self.base_url}/api/getbltable/{league_id}"
         return await self._fetch(url)
     
     async def get_matches_between_teams(self, team_id1: int, team_id2: int) -> AdapterResponse:

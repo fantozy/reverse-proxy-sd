@@ -14,7 +14,7 @@ logger = structlog.get_logger()
 class AuditMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        start_time = time.time()
+        start_time = time.perf_counter()
         
         request_id = await self._get_or_generate_request_id(request)
         method = request.method
@@ -24,13 +24,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
         
         try:
             response = await call_next(request)
-            latency_ms = int((time.time() - start_time) * 1000)
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
             await self._log_outbound(response, request_id, latency_ms)
             
             return response
         
         except Exception as e:
-            latency_ms = int((time.time() - start_time) * 1000)
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
             await logger.aerror(
                 "request_error",
                 request_id=request_id,

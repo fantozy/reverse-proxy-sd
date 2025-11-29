@@ -59,7 +59,7 @@ class OperationDecision:
         self.adapter_method = adapter_method
         self.payload_mapping = payload_mapping 
     
-    async def execute(self, adapter, payload: Dict[str, Any]) -> Any:
+    async def execute(self, payload: Dict[str, Any]) -> Any:
         """Extract payload fields and call adapter method."""
         kwargs = {}
         for payload_key, param_name in self.payload_mapping.items():

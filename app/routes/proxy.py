@@ -83,7 +83,7 @@ async def execute_proxy(request: ProxyRequest):
         if not decision:
             raise ValueError(f"No decision found for operation: {operation_type}")
         
-        adapter_response = await decision.execute(mapper.adapter, payload)
+        adapter_response = await decision.execute(payload)
         upstream_latency = adapter_response.latency_ms
         
         await logger.ainfo(
