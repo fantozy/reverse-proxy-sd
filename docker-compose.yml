@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  openliga-proxy:
+    build: .
+    container_name: openliga-proxy
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+    volumes:
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      - ./logs:/app/logs
+    networks:
+      - openliga-network
+    restart: unless-stopped
+
+networks:
+  openliga-network:
+    driver: bridge
